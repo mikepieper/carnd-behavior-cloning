@@ -38,7 +38,7 @@ def get_batch(rows):
         except:
             continue
         tgt = rows[i,3] # 'steering'
-        if len(images) > 8 and np.abs(tgt) < .01:
+        if len(images) > 24 and np.abs(tgt) < .01:
             continue
         if idx == 0: correction_factor = 0
         elif idx == 1: correction_factor = 1
@@ -49,7 +49,7 @@ def get_batch(rows):
     return np.array(images), np.array(targets)
 
 
-def train_epoch(model, df, bs=32):
+def train_epoch(model, df, bs=64):
     losses = []
     n_samples = df.shape[0]
     indices = np.arange(n_samples)
