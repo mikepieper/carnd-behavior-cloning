@@ -17,7 +17,7 @@ IMG_HEIGHT, IMG_WIDTH = 160-(70+25), 320
 
 def preprocess(image, measurement, correction_factor, flip=1.0):
     img, label = np.copy(image), np.copy(measurement)
-    label += 0.23 * correction_factor
+    label += 0.2 * correction_factor
     img = img / 255 - 0.5
     if np.random.uniform() < flip:
         img = np.fliplr(img)
@@ -72,7 +72,7 @@ def valid_epoch(model, df, bs=8):
                     + [(load_image(df.iloc[j,1].strip()) / 255 - 0.5) for j in idx]
                     + [(load_image(df.iloc[j,2].strip()) / 255 - 0.5) for j in idx]
                 )
-        targets = np.array([df.iloc[j,3] for j in idx] + [df.iloc[j,3]+.23 for j in idx] + [df.iloc[j,3]-.23 for j in idx])
+        targets = np.array([df.iloc[j,3] for j in idx] + [df.iloc[j,3]+.2 for j in idx] + [df.iloc[j,3]-.2 for j in idx])
         outputs = model.predict(images)
         losses.append(np.mean((targets - outputs)**2))
     return np.mean(losses)
@@ -118,23 +118,25 @@ model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
 train_losses = []
 val_losses = []
 best_val = 1000
-for epoch in range(40):
-    loss = train_epoch(model, df[:split])
-    train_losses.append(loss)
-    loss = valid_epoch(model, df[split:])
-    val_losses.append(loss)
-    print("EPOCH {}: {:.5f}, {:.5f}".format(epoch, train_losses[-1], val_losses[-1]))
-    if loss < best_val and epoch > 0:
-        best_val = loss
-        model.save('model.h5')
+print(df.shape)
+for epoch in range(30):
+    train_epoch(model, df)
+#    loss = train_epoch(model, df[:split])
+#    train_losses.append(loss)
+#    loss = valid_epoch(model, df[split:])
+#    val_losses.append(loss)
+#    print("EPOCH {}: {:.5f}, {:.5f}".format(epoch, train_losses[-1], val_losses[-1]))
+#    if loss < best_val and epoch > 0:
+#        best_val = loss
+#        model.save('model.h5')
 
-model = tf.keras.models.load_model('model.h5')
-model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
-              loss='mean_squared_error')
-print(train_epoch(model, df[split:]))
-print(train_epoch(model, df[split:]))
-print(train_epoch(model, df[split:]))
-print(train_epoch(model, df))
-print(train_epoch(model, df))
-print(train_epoch(model, df))
+#model = tf.keras.models.load_model('model.h5')
+#model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
+#              loss='mean_squared_error')
+#print(train_epoch(model, df[split:]))
+#print(train_epoch(model, df[split:]))
+#print(train_epoch(model, df[split:]))
+#print(train_epoch(model, df))
+#print(train_epoch(model, df))
+#print(train_epoch(model, df))
 model.save('model.h5')
