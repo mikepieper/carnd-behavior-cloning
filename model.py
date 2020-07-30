@@ -9,7 +9,8 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
 from pathlib import Path
-path = Path("simulator-data")
+# path = Path("simulator-data")
+path = Path("my-data")
 df = pd.read_csv(path/"driving_log.csv")
 split = int(df.shape[0]*0.8)
 IMG_HEIGHT, IMG_WIDTH = 160-(70+25), 320
@@ -56,8 +57,8 @@ def train_epoch(model, df, bs=32):
             image = tf.image.adjust_saturation(image, np.random.uniform(0.75, 1.5))
         hist = model.fit(images, targets, verbose=0)
         losses.append(hist.history['loss'])
-#         if i % 200 == 0 and i > 0:
-#             print(np.mean(losses))
+        if i % 200 == 0 and i > 0:
+            print(np.mean(losses))
     return np.mean(losses)
 
 
@@ -78,34 +79,36 @@ def valid_epoch(model, df, bs=8):
     return np.mean(losses)
 
 
-model = Sequential([
-    Conv2D(32, 7, padding='same', activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH ,3)),
-    BatchNormalization(),
-    MaxPooling2D(),
-    Dropout(0.2),
-    Conv2D(64, 5, padding='same', activation='relu'),
-    BatchNormalization(),
-    MaxPooling2D(),
-    Dropout(0.2),
-    Conv2D(128, 3, padding='same', activation='relu'),
-    BatchNormalization(),
-    MaxPooling2D(),
-    Dropout(0.2),
-    Conv2D(256, 3, padding='same', activation='relu'),
-    BatchNormalization(),
-    MaxPooling2D(),
-    Dropout(0.2),
-    Conv2D(256, 3, padding='same', activation='relu'),
-    Flatten(),
-    BatchNormalization(),
-    ReLU(),
-    Dropout(0.5),
-    Dense(128, activation='relu'),
-    ReLU(),
-    Dropout(0.5),
-    Dense(32, activation='relu'),
-    Dense(1)
-])
+# model = Sequential([
+#     Conv2D(32, 7, padding='same', activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH ,3)),
+#     BatchNormalization(),
+#     MaxPooling2D(),
+#     Dropout(0.2),
+#     Conv2D(64, 5, padding='same', activation='relu'),
+#     BatchNormalization(),
+#     MaxPooling2D(),
+#     Dropout(0.2),
+#     Conv2D(128, 3, padding='same', activation='relu'),
+#     BatchNormalization(),
+#     MaxPooling2D(),
+#     Dropout(0.2),
+#     Conv2D(256, 3, padding='same', activation='relu'),
+#     BatchNormalization(),
+#     MaxPooling2D(),
+#     Dropout(0.2),
+#     Conv2D(256, 3, padding='same', activation='relu'),
+#     Flatten(),
+#     BatchNormalization(),
+#     ReLU(),
+#     Dropout(0.5),
+#     Dense(128, activation='relu'),
+#     ReLU(),
+#     Dropout(0.5),
+#     Dense(32, activation='relu'),
+#     Dense(1)
+# ])
+
+model = tf.keras.models.load_model('model.h5')
 
 model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
               loss='mean_squared_error')
@@ -120,7 +123,7 @@ for epoch in range(100):
     loss = valid_epoch(model, df[split:])
     val_losses.append(loss)
     print("EPOCH {}: {:.5f}, {:.5f}".format(epoch, train_losses[-1], val_losses[-1]))
-    if loss < best_val and epoch > 2:
+    if loss < best_val and epoch > 0:
         best_val = loss
-        model.save('model.h5'.format(epoch))
+        model.save('model2.h5'.format(epoch))
     
