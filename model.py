@@ -124,24 +124,23 @@ train_losses = []
 val_losses = []
 best_val = 1000
 print(df.shape)
-for epoch in range(30):
-    train_epoch(model, df)
-#    loss = train_epoch(model, df[:split])
-#    train_losses.append(loss)
-#    loss = valid_epoch(model, df[split:])
-#    val_losses.append(loss)
-#    print("EPOCH {}: {:.5f}, {:.5f}".format(epoch, train_losses[-1], val_losses[-1]))
+for epoch in range(60):
+   loss = train_epoch(model, df[:split])
+   train_losses.append(loss)
+   loss = valid_epoch(model, df[split:])
+   val_losses.append(loss)
+   print("EPOCH {}: {:.5f}, {:.5f}".format(epoch, train_losses[-1], val_losses[-1]))
 #    if loss < best_val and epoch > 0:
 #        best_val = loss
-#        model.save('model.h5')
+    model.save('model.h5')
 
-#model = tf.keras.models.load_model('model.h5')
-#model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
+# model = tf.keras.models.load_model('model.h5')
+# model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
 #              loss='mean_squared_error')
-#print(train_epoch(model, df[split:]))
-#print(train_epoch(model, df[split:]))
-#print(train_epoch(model, df[split:]))
-#print(train_epoch(model, df))
-#print(train_epoch(model, df))
-#print(train_epoch(model, df))
+print(train_epoch(model, df[split:]))
+print(train_epoch(model, df[split:]))
+print(train_epoch(model, df[split:]))
+print(train_epoch(model, df))
+print(train_epoch(model, df))
+print(train_epoch(model, df))
 model.save('model.h5')
