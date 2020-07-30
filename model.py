@@ -33,8 +33,13 @@ def get_batch(rows):
     images, targets = [], []
     for i in range(rows.shape[0]):
         idx = np.random.choice(3)
-        img = load_image(rows[i,idx].strip())
+        try:
+            img = load_image(rows[i,idx].strip())
+        except:
+            continue
         tgt = rows[i,3] # 'steering'
+        if len(images) > 8 and np.abs(tgt) < .01:
+            continue
         if idx == 0: correction_factor = 0
         elif idx == 1: correction_factor = 1
         else: correction_factor = -1
