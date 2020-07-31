@@ -11,10 +11,14 @@ import eventlet.wsgi
 from PIL import Image
 from flask import Flask
 from io import BytesIO
+import cv2
 
-from keras.models import load_model
+import tensorflow as tf
+from tensorflow import keras
+
 import h5py
-from keras import __version__ as keras_version
+# from keras.models import load_model
+# from keras import __version__ as keras_version
 
 sio = socketio.Server()
 app = Flask(__name__)
@@ -45,7 +49,7 @@ class SimplePIController:
 
 
 controller = SimplePIController(0.1, 0.002)
-set_speed = 15
+set_speed = 9
 controller.set_desired(set_speed)
 
 
@@ -65,11 +69,20 @@ def telemetry(sid, data):
         image_array = (image_array / 255) - 0.5
         image_array = image_array[70:-25,...] # CROP
         steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
-        controller.angle = 0.5*controller.angle + 0.5*steering_angle
-        steering_angle = 2*controller.angle
+        if (controller.angle < 0 and steering_angle < 0) or (controller.angle > 0 and steering_angle > 0): 
+            controller.angle = steering_angle
+        else:
+            controller.angle = 0.5*controller.angle + 0.5*steering_angle
+        steering_angle = controller.angle
         throttle = controller.update(float(speed))
-        if throttle > np.abs(2.0*np.pi/180.0):
-            throttle /= 2.0
+        if np.abs(steering_angle) > .034:
+            if controller.set_point > 5:
+                controller.set_desired(5)
+            steering_angle *= 2
+            if np.abs(steering_angle) > 0.15:
+                steering_angle *= 2
+        else:
+            controller.set_desired(9)
 
         print(steering_angle, throttle)
         send_control(steering_angle, throttle)
@@ -118,25 +131,26 @@ if __name__ == '__main__':
 
     # check that model Keras version is same as local Keras version
     f = h5py.File(args.model, mode='r')
-    model_version = f.attrs.get('keras_version')
-    keras_version = str(keras_version).encode('utf8')
+#     model_version = f.attrs.get('keras_version')
+#     keras_version = str(keras_version).encode('utf8')
 
-    if model_version != keras_version:
-        print('You are using Keras version ', keras_version,
-              ', but the model was built using ', model_version)
+#     if model_version != keras_version:
+#         print('You are using Keras version ', keras_version,
+#               ', but the model was built using ', model_version)
 
-    model = load_model(args.model)
-
+#     model = load_model(args.model)
     if args.image_folder != '':
         print("Creating image folder at {}".format(args.image_folder))
         if not os.path.exists(args.image_folder):
             os.makedirs(args.image_folder)
         else:
-            shutil.rmtree(args.image_folder)
+      #       shutil.rmtree(args.image_folder)
             os.makedirs(args.image_folder)
         print("RECORDING THIS RUN ...")
     else:
-        print("NOT RECORDING THIS RUN ...")
+        print("NOT#  RECORDING THIS RUN ...")
+
+    model = tf.keras.models.load_model(args.model)
 
     # wrap Flask application with engineio's middleware
     app = socketio.Middleware(sio, app)
