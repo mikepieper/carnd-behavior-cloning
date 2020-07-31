@@ -24,6 +24,7 @@ prev_image_array = None
 
 class SimplePIController:
     def __init__(self, Kp, Ki):
+        self.angle = 0
         self.Kp = Kp
         self.Ki = Ki
         self.set_point = 0.
@@ -44,7 +45,7 @@ class SimplePIController:
 
 
 controller = SimplePIController(0.1, 0.002)
-set_speed = 9
+set_speed = 15
 controller.set_desired(set_speed)
 
 
@@ -61,9 +62,14 @@ def telemetry(sid, data):
         imgString = data["image"]
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
+        image_array = (image_array / 255) - 0.5
+        image_array = image_array[70:-25,...] # CROP
         steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
-
+        controller.angle = 0.5*controller.angle + 0.5*steering_angle
+        steering_angle = 2*controller.angle
         throttle = controller.update(float(speed))
+        if throttle > np.abs(2.0*np.pi/180.0):
+            throttle /= 2.0
 
         print(steering_angle, throttle)
         send_control(steering_angle, throttle)
