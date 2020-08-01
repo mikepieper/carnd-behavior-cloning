@@ -11,14 +11,18 @@ from pdb import set_trace
 from pathlib import Path
 path = Path("simulator-data")
 df = pd.read_csv(path/"driving_log.csv")
-split = int(df.shape[0]*0.85)
+split = int(df.shape[0]*0.85) # separates train and val datasets
 IMG_HEIGHT, IMG_WIDTH = 160-(70+25), 320
+
 
 
 def preprocess(image, measurement, correction_factor, flip=1.0):
     img, label = np.copy(image), np.copy(measurement)
+    # Modifies the target output if selected image is from right or left camera
     label += 0.2 * correction_factor
+    # Scale and 0-center pixels (improves gradient handling)
     img = img / 255 - 0.5
+    # Flips the image left/right randomly
     if np.random.uniform() < flip:
         img = np.fliplr(img)
         label = -label
@@ -26,17 +30,24 @@ def preprocess(image, measurement, correction_factor, flip=1.0):
 
 def load_image(img):
     image = cv2.cvtColor(cv2.imread(str(path/img)), cv2.COLOR_BGR2RGB)
-    # crop off top 70 and bottom 25 pixels
+    # Crop to out region above track and region of the car hood.
     return image[70:-25,...]
 
 def get_batch(rows):
+    """ ows are from the dataframe, each containing image filenames and steering angle """
     images, targets = [], []
     for i in range(rows.shape[0]):
+        # randomly select left/center/right camera for each data sample
         idx = np.random.choice(3)
         img = load_image(rows[i,idx].strip())
         tgt = rows[i,3] # 'steering'
+        # To compensate for the vehicle being biased in understeering on turns,
+        # we keep the first 24 images in a batchsize of 64 to ensure minimum batchsize of 24,
+        # and after that keep those whose steering angle is greater than .01
+        # This reduces the occurence of driving straight through sharp turns
         if len(images) > 24 and np.abs(tgt) < .01:
             continue
+        # Adjust target if left/right camera is selected
         if idx == 0: correction_factor = 0
         elif idx == 1: correction_factor = 1
         else: correction_factor = -1
@@ -53,6 +64,7 @@ def train_epoch(model, df, bs=64):
     np.random.shuffle(indices)
     for i in range(n_samples // bs - 1):
         images, targets = get_batch(df.iloc[indices[bs*i:bs*(i+1)]].values)
+        # Image augmentation
         for img in images:
             img = tf.image.adjust_brightness(img, np.random.uniform(0.8, 1.2))
             img = tf.image.adjust_saturation(img, np.random.uniform(0.8, 1.2))
@@ -80,6 +92,10 @@ def valid_epoch(model, df, bs=8):
     return np.mean(losses)
 
 
+# Buid CNN with:
+#   5 convolutions layers, each followed by batchnorm, maxpool and dropout (last layer has ReLU instead of maxpool)
+#   Flatten the last convolutional layer
+#   3 fully connected layers, the first two have dropout
 model = Sequential([
     Conv2D(32, 7, padding='same', activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH ,3)),
     BatchNormalization(),
@@ -111,34 +127,24 @@ model = Sequential([
     Dense(1)
 ])
 
-model = tf.keras.models.load_model('model.h5')
+# model = tf.keras.models.load_model('model.h5')
 
+# After trying some different learning rates, 1e-5 seemed to perform very well compared to higher learning rates.
+# A faster approach would have been to use cyclical learning rates.
 model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
               loss='mean_squared_error')
 
 
+# After each epoch, save model if validation error has decreased.
 train_losses = []
 val_losses = []
 best_val = 1000
-print(df.shape)
-for epoch in range(15):
-    print(train_epoch(model, df))
-#    loss = train_epoch(model, df[:split])
-#    train_losses.append(loss)
-#    loss = valid_epoch(model, df[split:])
-#    val_losses.append(loss)
-#    print("EPOCH {}: {:.5f}, {:.5f}".format(epoch, train_losses[-1], val_losses[-1]))
-#    if loss < best_val and epoch > 0:
-#        best_val = loss
-    model.save('model.h5')
-
-# model = tf.keras.models.load_model('model.h5')
-# model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
-#              loss='mean_squared_error')
-# print(train_epoch(model, df[split:]))
-# print(train_epoch(model, df[split:]))
-# print(train_epoch(model, df[split:]))
-# print(train_epoch(model, df))
-# print(train_epoch(model, df))
-# print(train_epoch(model, df))
-# model.save('model.h5')
+for epoch in range(30):
+   loss = train_epoch(model, df[:split])
+   train_losses.append(loss)
+   loss = valid_epoch(model, df[split:])
+   val_losses.append(loss)
+   print("EPOCH {}: {:.5f}, {:.5f}".format(epoch, train_losses[-1], val_losses[-1]))
+   if loss < best_val and epoch > 0:
+       best_val = loss
+        model.save('model.h5')
